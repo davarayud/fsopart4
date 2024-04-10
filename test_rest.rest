@@ -1,0 +1,41 @@
+GET http://localhost:3003/api/blogs
+
+###
+POST http://localhost:3003/api/blogs
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6ImNlY2NjZGUiLCJpZCI6IjY1ZDY4ZjRmNzcyYTA4MmU0M2Q4ZDhlOCIsImlhdCI6MTcwOTE1MzMxM30.pvH-MvuolCwTC6CsNV0LMNY1CEHGMlCHPX3qFyjamfo
+
+{
+  "title": "Motos 3",
+  "author": "Pedro Varelaso",
+  "url": "https://motosargentinasnews",
+  "likes": 6
+}
+
+###
+DELETE http://localhost:3003/api/blogs/65d68d5d37cb6bf8bec0ab50
+
+###
+GET http://localhost:3003/api/users
+
+###
+POST http://localhost:3003/api/users
+Content-Type: application/json
+
+{
+  "username": "cecccde",
+  "name": "damsrsasdian",
+  "password": "asa"
+}
+
+###
+DELETE http://localhost:3003/api/users/all
+
+###
+POST http://localhost:3003/api/login
+Content-Type: application/json
+
+{
+  "username": "cecccde",
+  "password": "asa"
+}
