@@ -1,7 +1,7 @@
 const blogsRouter = require('express').Router()
 const Blog = require('../models/blog')
-const User = require('../models/user')
-const jwt = require('jsonwebtoken')
+const middleware = require('../utils/middleware')
+
 
 blogsRouter.get('/', async (request, response) => {
   const blogs = await Blog
@@ -20,22 +20,9 @@ blogsRouter.get('/:id', async (request, response) => {
   }
 })
 
-//const getTokenFrom = request => {
-//  const authorization = request.get('authorization')
-//  if (authorization && authorization.startsWith('Bearer ')) {
-//    return authorization.replace('Bearer ', '')
-//  }
-//  return null
-//}
-
-blogsRouter.post('/', async (request, response) => {
+blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
   const body = request.body
-  // const getTok = getTokenFrom(request)
-  const decodedToken = jwt.verify(request.token , process.env.SECRET)
-  if (!decodedToken.id) {
-    return response.status(401).json({ error: 'token invalid' })
-  }
-  const user = await User.findById(decodedToken.id)
+  const user = request.user
 
   const blog = new Blog({
     title: body.title,
@@ -48,11 +35,22 @@ blogsRouter.post('/', async (request, response) => {
   user.blogs = user.blogs.concat(savedBlog._id)
   await user.save()
 
-  response.status(200).json(savedBlog)
+  response.status(201).json(savedBlog)
 })
 
-blogsRouter.delete('/:id', async (request, response) => {
+blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
+  const user = request.user
+  const blogToDelete = await Blog.findById(request.params.id)
+  if (blogToDelete === null) {
+    return response.status(401).json({ error: 'id invalid' })
+  }
+  if (user._id.toString() !== blogToDelete.user.toString()) {
+    return response.status(401).json({ error: 'user invalid' })
+  }
   await Blog.findByIdAndDelete(request.params.id)
+  user.blogs = user.blogs.filter(blogid => blogid.toString() !== request.params.id.toString())
+  await user.save()
+
   response.status(204).end()
 })
 

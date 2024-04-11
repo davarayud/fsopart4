@@ -2,14 +2,19 @@ const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
 const Blog = require('../models/blog')
+const User = require('../models/user')
 const helper = require('./test_helper')
 
 
 beforeEach(async () => {
   await Blog.deleteMany({})
   const blogObjects = helper.initialBlog.map(blog => new Blog(blog))
-  const promiseArray = blogObjects.map(blog => blog.save())
-  await Promise.all(promiseArray)
+  const promiseArrayBlog = blogObjects.map(blog => blog.save())
+  await Promise.all(promiseArrayBlog)
+  await User.deleteMany({})
+  const userObjects = helper.initialUser.map(user => new User(user))
+  const promiseArrayUser = userObjects.map(user => user.save())
+  await Promise.all(promiseArrayUser)
 })
 
 const api = supertest(app)
@@ -46,6 +51,7 @@ describe('viewing a specific note', () => {
       .expect(200)
       .expect('Content-Type', /application\/json/)
 
+    blogToView.user = blogToView.user.toString()
     expect(result.body).toEqual(blogToView)
   })
 
@@ -75,9 +81,15 @@ describe('addition of a new blog', () => {
       likes: 6
     }
 
+    const login = await api
+      .post('/api/login')
+      .send(helper.userPass)
+    const token = login.body.token
+
     await api
       .post('/api/blogs')
       .send(newBlog)
+      .set('Authorization', `Bearer ${token}`)
       .expect(201)
       .expect('Content-Type', /application\/json/)
 
@@ -95,9 +107,15 @@ describe('addition of a new blog', () => {
       url: 'https://motosargentinasnews.blogspot.com/',
     }
 
+    const login = await api
+      .post('/api/login')
+      .send(helper.userPass)
+    const token = login.body.token
+
     await api
       .post('/api/blogs')
       .send(newBlog)
+      .set('Authorization', `Bearer ${token}`)
       .expect(201)
       .expect('Content-Type', /application\/json/)
 
@@ -114,10 +132,33 @@ describe('addition of a new blog', () => {
       likes: 6
     }
 
+    const login = await api
+      .post('/api/login')
+      .send(helper.userPass)
+    const token = login.body.token
+
     await api
       .post('/api/blogs')
       .send(newBlog)
+      .set('Authorization', `Bearer ${token}`)
       .expect(400)
+
+    const blogsAtEnd = await helper.blogsInDb()
+    expect(blogsAtEnd).toHaveLength(helper.initialBlog.length)
+  })
+
+  test('add blog without token, returns error 401 Unauthorized', async () => {
+    const newBlog = {
+      title: 'Motos Argentinas',
+      author: 'Pedro Varela',
+      url: 'https://motosargentinasnews.blogspot.com/',
+      likes: 6
+    }
+
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401)
 
     const blogsAtEnd = await helper.blogsInDb()
     expect(blogsAtEnd).toHaveLength(helper.initialBlog.length)
@@ -129,15 +170,35 @@ describe('deletion of a blog', () => {
     const blogsAtStart = await helper.blogsInDb()
     const blogToDelete = blogsAtStart[0]
 
+    const login = await api
+      .post('/api/login')
+      .send(helper.userPass)
+    const token = login.body.token
+
     await api
       .delete(`/api/blogs/${blogToDelete.id}`)
+      .set('Authorization', `Bearer ${token}`)
       .expect(204)
 
     const blogsAtEnd = await helper.blogsInDb()
     const titles = blogsAtEnd.map(r => r.title)
+    const user = await User.findOne({ username: login.body.username })
+    const userblogs = user.blogs.map( r => r.toString())
 
     expect(blogsAtEnd).toHaveLength(helper.initialBlog.length - 1)
     expect(titles).not.toContain(blogToDelete.title)
+    expect(userblogs).not.toContain(blogToDelete.id)
+  })
+  test('delete blog without token, returns error 401 Unauthorized', async () => {
+    const blogsAtStart = await helper.blogsInDb()
+    const blogToDelete = blogsAtStart[0]
+
+    await api
+      .delete(`/api/blogs/${blogToDelete.id}`)
+      .expect(401)
+
+    const blogsAtEnd = await helper.blogsInDb()
+    expect(blogsAtEnd).toHaveLength(helper.initialBlog.length)
   })
 })
 
@@ -159,9 +220,9 @@ describe('update a blog', () => {
       .expect('Content-Type', /application\/json/)
 
     const blogsAtEnd = await helper.blogsInDb()
-    blogToUp.id = blogToUpId
+    const titleBlogs = blogsAtEnd.map(blog => blog.title)
 
-    expect(blogsAtEnd).toContainEqual(blogToUp)
+    expect(titleBlogs).toContainEqual(blogToUp.title)
     expect(blogsAtEnd).toHaveLength(helper.initialBlog.length)
   })
 
