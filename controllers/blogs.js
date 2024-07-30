@@ -14,7 +14,8 @@ blogsRouter.get('/', async (request, response) => {
 blogsRouter.get('/:id', async (request, response) => {
   const blog = await Blog.findById(request.params.id)
   if (blog) {
-    response.json(blog)
+    const result = await blog.populate('user', { username: 1, name: 1, id: 1 })
+    response.json(result)
   } else {
     response.status(404).end()
   }
@@ -34,8 +35,9 @@ blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
   const savedBlog = await blog.save()
   user.blogs = user.blogs.concat(savedBlog._id)
   await user.save()
+  const result = await savedBlog.populate('user', { username: 1, name: 1, id: 1 })
 
-  response.status(201).json(savedBlog)
+  response.status(201).json(result)
 })
 
 blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
@@ -60,15 +62,17 @@ blogsRouter.put('/:id', async (request, response) => {
     title: body.title,
     author: body.author,
     url: body.url,
-    likes: body.likes
+    likes: body.likes,
+    user: body.user
   }
 
-  const result = await Blog.findByIdAndUpdate(
+  const blogModif = await Blog.findByIdAndUpdate(
     request.params.id,
     blogToUp,
     { new: true, runValidators: true }
   )
-  if(result) {
+  if(blogModif) {
+    const result = await blogModif.populate('user', { username: 1, name: 1, id: 1 })
     response.status(200).json(result)
   } else {
     response.status(400).json({ error: `${blogToUp.title} was already removed from server` })
